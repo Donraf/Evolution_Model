@@ -10,15 +10,32 @@ public class Creature : MonoBehaviour
     private int triplet_size = 3;
     private int triplets_in_gene = 4;
     private int amins_in_gene;
+    private Stack<task> taskQueue = new Stack<task>();
     public float health;
     public float velocity;
     public string sex;
     public char[] genes;
     public Dictionary<string, int> dict = new Dictionary<string, int>();
     public bool give_birth = true;
+
+    private bool isBusy = false;
+    private task taskToDo;
+
     // Временный запрет на размножение при рождении
     public float birth_time;
     public float birth_pause = 4.0f;
+    private struct task
+    {
+        public task(string taskName, float taskTime = 0.0f, float taskStartTime = 0.0f)
+        {
+            this.taskName = taskName;
+            this.taskTime = taskTime;
+            this.taskStartTime = taskStartTime;
+        }
+        public string taskName;
+        public float taskTime;
+        public float taskStartTime;
+    }
 
     private void Awake()
     {
@@ -84,15 +101,32 @@ public class Creature : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        Vector3 step = new Vector3(Random.Range(-1.0f, 1.0f) * velocity * 0.01f, 0, Random.Range(-1.0f, 1.0f) * velocity * 0.01f);
-        gameObject.transform.Translate(step);
+        if (taskQueue.Count == 0)
+        {
+            task new_task_move = new task("Move", 2.5f);
+            task new_task_idle = new task("Idle", 2.0f);
+            taskQueue.Push(new_task_idle);
+            taskQueue.Push(new_task_move);
+        }
+        else
+        {
+            if (!isBusy)
+            {
+                isBusy = true;
+                taskToDo = taskQueue.Peek();
+            }
+            if(!doTask(ref taskToDo))
+            {
+                taskQueue.Pop();
+                isBusy = false;
+            }
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag("Creature"))
         {
-            //Debug.Log("Collision Time: " + Time.time.ToString() + " Birth Time: " + birth_time.ToString());
             if (Time.time - birth_time > birth_pause && give_birth)
             {
                 createChild(gameObject, collision.gameObject);
@@ -107,8 +141,7 @@ public class Creature : MonoBehaviour
         Instantiate(this_creature, this_creature.transform.position + new Vector3(0, 20, 0), this_creature.transform.rotation);
     }
 
-    // TODO: Передача по ссылке
-    private int defineNumericCharacteristic(float[] triplet_nums)
+    private int defineNumericCharacteristic(in float[] triplet_nums)
     {
         float x = 0.0f;
         for (int i = 0; i < triplet_nums.Length; i++)
@@ -119,8 +152,7 @@ public class Creature : MonoBehaviour
         return characteristic;
     }
 
-    // TODO: Передача по ссылке
-    private float[] getGene(int allele, float[] genes)
+    private float[] getGene(in int allele, in float[] genes)
     {
         float[] gene = new float[triplets_in_gene];
         for (int i = 0; i < triplets_in_gene; i++)
@@ -128,5 +160,34 @@ public class Creature : MonoBehaviour
             gene[i] = genes[allele * triplets_in_gene + i];
         }
         return gene;
+    }
+
+    private bool doTask(ref task taskToDo)
+    {
+        if (taskToDo.taskName == "Move")
+        {
+            if (taskToDo.taskStartTime == 0.0f)
+            {
+                taskToDo.taskStartTime = Time.time;
+            }
+            if (Time.time - taskToDo.taskStartTime < taskToDo.taskTime)
+            {
+                Vector3 step = new Vector3(Random.Range(-1.0f, 1.0f) * velocity * 0.01f, 0, Random.Range(-1.0f, 1.0f) * velocity * 0.01f);
+                gameObject.transform.Translate(step);
+                return true;
+            }
+        }
+        else if (taskToDo.taskName == "Idle")
+        {
+            if (taskToDo.taskStartTime == 0.0f)
+            {
+                taskToDo.taskStartTime = Time.time;
+            }
+            if (Time.time - taskToDo.taskStartTime < taskToDo.taskTime)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
