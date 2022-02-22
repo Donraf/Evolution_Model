@@ -8,7 +8,7 @@ public class Events : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        for(int i = 0; i < 5; i++)
+        for(int i = 0; i < 20; i++)
         {
             Instantiate(creature, new Vector3(1, 2.5f, 1), Quaternion.identity);
         }

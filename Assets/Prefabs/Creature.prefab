@@ -126,6 +126,7 @@ MonoBehaviour:
   health: 0
   velocity: 0
   sex: 
+  color: 
   genes: 
   give_birth: 1
   birth_time: 0

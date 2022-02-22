@@ -6,18 +6,19 @@ public class Creature : MonoBehaviour
 {
     private int amin_classes = 4;
     // TODO: Dict for genes (поставить в соответствие аллели определенным генам)
-    private int genes_num = 3;
+    private int genes_num = 4;
     private int triplet_size = 3;
-    private int triplets_in_gene = 4;
+    private int triplets_in_gene = 8;
     private int amins_in_gene;
     private Stack<task> taskQueue = new Stack<task>();
     public float health;
     public float velocity;
     public string sex;
+    public string color;
     public char[] genes;
     public Dictionary<string, int> dict = new Dictionary<string, int>();
     public bool give_birth = true;
-
+    private Material material;
     private bool isBusy = false;
     private task taskToDo;
 
@@ -47,12 +48,15 @@ public class Creature : MonoBehaviour
     {
         // Создание набора генов объекта
         amins_in_gene = triplet_size * triplets_in_gene;
-        genes = new char[genes_num * amins_in_gene];
-        int i = 0;
-        foreach (char amin in genes)
+        if (genes.Length == 0)
         {
-            genes[i] = (char)(97 + Mathf.FloorToInt(Random.Range(0.0f, (float)amin_classes)));
-            i++;
+            genes = new char[genes_num * amins_in_gene];
+            int i = 0;
+            foreach (char amin in genes)
+            {
+                genes[i] = (char)(97 + Mathf.FloorToInt(Random.Range(0.0f, amin_classes)));
+                i++;
+            }
         }
         // Создание словаря перевода триплетов в числа
         for (int j = 0; j < (int)Mathf.Pow(amin_classes, triplet_size); j++)
@@ -73,7 +77,7 @@ public class Creature : MonoBehaviour
             {
                 key += genes[j + k];
             }
-            arr_num[j / triplet_size] = (float)dict[key];
+            arr_num[j / triplet_size] = dict[key];
         }
         // Нормализация координат вектора (1 вектор = 1 ген)
         for (int j = 0; j < arr_num.Length; j += triplets_in_gene)
@@ -96,6 +100,29 @@ public class Creature : MonoBehaviour
         velocity = defineNumericCharacteristic(velocity_gene);
         float[] sex_gene = getGene(2, arr_num);
         sex = defineNumericCharacteristic(sex_gene) > 50 ? "Female" : "Male";
+        float[] color_gene = getGene(3, arr_num);
+        int color_num = defineNumericCharacteristic(color_gene);
+        material = GetComponent<Renderer>().material;
+        if (color_num < 56)
+        {
+            material.color = Color.black;
+            color = "brown";
+        }
+        else if (color_num < 81)
+        {
+            material.color = Color.yellow;
+            color = "yellow";
+        }
+        else if (color_num < 93)
+        {
+            material.color = Color.green;
+            color = "orange";
+        }
+        else
+        {
+            material.color = Color.red;
+            color = "red";
+        }
     }
 
     // Update is called once per frame
@@ -104,7 +131,7 @@ public class Creature : MonoBehaviour
         if (taskQueue.Count == 0)
         {
             task new_task_move = new task("Move", 2.5f);
-            task new_task_idle = new task("Idle", 2.0f);
+            task new_task_idle = new task("Idle", 1.0f);
             taskQueue.Push(new_task_idle);
             taskQueue.Push(new_task_move);
         }
@@ -125,12 +152,13 @@ public class Creature : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag("Creature"))
+        if (collision.gameObject.CompareTag("Creature") && collision.gameObject.GetComponent<Creature>().sex == "Male")
         {
-            if (Time.time - birth_time > birth_pause && give_birth)
+            if (Time.time - birth_time > birth_pause && give_birth && sex == "Female")
             {
                 createChild(gameObject, collision.gameObject);
                 give_birth = false;
+                collision.gameObject.GetComponent<Creature>().give_birth = false;
                 Debug.Log("New Creature! Time:" + (Time.time - birth_time).ToString());
             }
         }
@@ -138,7 +166,34 @@ public class Creature : MonoBehaviour
 
     private void createChild(GameObject this_creature, GameObject another_creature)
     {
-        Instantiate(this_creature, this_creature.transform.position + new Vector3(0, 20, 0), this_creature.transform.rotation);
+        GameObject child = Instantiate(this_creature, this_creature.transform.position + new Vector3(0, 20, 0), this_creature.transform.rotation);
+        char[] childGenes = new char[genes_num * amins_in_gene];
+        char[] fatherGenes = another_creature.GetComponent<Creature>().genes;
+
+        if (amins_in_gene % 2 == 0)
+        {
+            for (int i = 0; i < genes.Length; i += amins_in_gene)
+            {
+                for (int j = 0; j < amins_in_gene / 2; j++)
+                {
+                    childGenes[i + j] = genes[i + j];
+                    childGenes[i + j + amins_in_gene / 2] = fatherGenes[i + j + amins_in_gene / 2];
+                }
+            }
+        }
+        else
+        {
+            for (int i = 1; i < genes.Length; i += amins_in_gene)
+            {
+                for (int j = 0; j < amins_in_gene / 2; j++)
+                {
+                    childGenes[i + j] = genes[i + j];
+                    childGenes[i + j + amins_in_gene / 2] = fatherGenes[i + j + amins_in_gene / 2];
+                }
+                childGenes[i - 1] = genes[i - 1];
+            }
+        }
+        child.GetComponent<Creature>().genes = childGenes;
     }
 
     private int defineNumericCharacteristic(in float[] triplet_nums)
