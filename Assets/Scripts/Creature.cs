@@ -10,7 +10,7 @@ public class Creature : MonoBehaviour
     private int triplet_size = 3;
     private int triplets_in_gene = 8;
     private int amins_in_gene;
-    private Stack<task> taskQueue = new Stack<task>();
+    private Stack<Task> taskQueue = new Stack<Task>();
     public float health;
     public float velocity;
     public string sex;
@@ -19,23 +19,25 @@ public class Creature : MonoBehaviour
     public Dictionary<string, int> dict = new Dictionary<string, int>();
     public bool give_birth = true;
     private Material material;
-    private bool isBusy = false;
-    private task taskToDo;
 
     // Временный запрет на размножение при рождении
     public float birth_time;
     public float birth_pause = 4.0f;
-    private struct task
+    public class Task
     {
-        public task(string taskName, float taskTime = 0.0f, float taskStartTime = 0.0f)
+        public Task(string taskName, GameObject creature, float taskTime = 0.0f, float taskStartTime = 0.0f)
         {
             this.taskName = taskName;
+            this.creature = creature;
             this.taskTime = taskTime;
             this.taskStartTime = taskStartTime;
         }
+        public GameObject creature;
         public string taskName;
         public float taskTime;
         public float taskStartTime;
+
+        public virtual bool action() { return false; }
     }
 
     private void Awake()
@@ -128,25 +130,19 @@ public class Creature : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
+        Task taskToDo;
         if (taskQueue.Count == 0)
         {
-            task new_task_move = new task("Move", 2.5f);
-            task new_task_idle = new task("Idle", 1.0f);
+            Vector3 step = new Vector3(Random.Range(-1.0f, 1.0f) * velocity * 0.01f, 0, Random.Range(-1.0f, 1.0f) * velocity * 0.01f);
+            MoveTask new_task_move = new MoveTask(step ,"Move", gameObject, 0.6f);
+            IdleTask new_task_idle = new IdleTask("Idle", gameObject, 0.1f);
             taskQueue.Push(new_task_idle);
             taskQueue.Push(new_task_move);
         }
-        else
+        if (taskQueue.Count != 0)
         {
-            if (!isBusy)
-            {
-                isBusy = true;
-                taskToDo = taskQueue.Peek();
-            }
-            if(!doTask(ref taskToDo))
-            {
-                taskQueue.Pop();
-                isBusy = false;
-            }
+            taskToDo = taskQueue.Peek();
+            doTask(ref taskToDo);
         }
     }
 
@@ -217,32 +213,59 @@ public class Creature : MonoBehaviour
         return gene;
     }
 
-    private bool doTask(ref task taskToDo)
+    public void doTask(ref Task taskToDo)
     {
-        if (taskToDo.taskName == "Move")
+        if (!taskToDo.action())
         {
-            if (taskToDo.taskStartTime == 0.0f)
-            {
-                taskToDo.taskStartTime = Time.time;
-            }
-            if (Time.time - taskToDo.taskStartTime < taskToDo.taskTime)
-            {
-                Vector3 step = new Vector3(Random.Range(-1.0f, 1.0f) * velocity * 0.01f, 0, Random.Range(-1.0f, 1.0f) * velocity * 0.01f);
-                gameObject.transform.Translate(step);
-                return true;
-            }
+            taskQueue.Pop();
         }
-        else if (taskToDo.taskName == "Idle")
-        {
-            if (taskToDo.taskStartTime == 0.0f)
-            {
-                taskToDo.taskStartTime = Time.time;
-            }
-            if (Time.time - taskToDo.taskStartTime < taskToDo.taskTime)
-            {
-                return true;
-            }
-        }
-        return false;
     }
+
+    public class MoveTask: Task
+    {
+        public Vector3 direction; 
+        public MoveTask(Vector3 direction, string taskName, GameObject creature, float taskTime = 0.0f, float taskStartTime = 0.0f)
+            : base(taskName, creature, taskTime, taskStartTime)
+        {
+            this.direction = direction;
+        }
+
+        public override bool action()
+        {
+            base.action();
+            if (taskStartTime == 0.0f)
+            {
+                taskStartTime = Time.time;
+            }
+            if (Time.time - taskStartTime < taskTime)
+            {
+                //Vector3 step = new Vector3(Random.Range(-1.0f, 1.0f) * creature.GetComponent<Creature>().velocity * 0.01f, 0, Random.Range(-1.0f, 1.0f) * creature.GetComponent<Creature>().velocity * 0.01f);
+                creature.transform.Translate(direction);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public class IdleTask : Task
+    {
+        public Vector3 direction;
+        public IdleTask(string taskName, GameObject creature, float taskTime = 0.0f, float taskStartTime = 0.0f)
+            : base(taskName, creature, taskTime, taskStartTime) { }
+
+        public override bool action()
+        {
+            base.action();
+            if (taskStartTime == 0.0f)
+            {
+                taskStartTime = Time.time;
+            }
+            if (Time.time - taskStartTime < taskTime)
+            {
+                return true;
+            }
+            return false;
+        }
+    }
+
 }
