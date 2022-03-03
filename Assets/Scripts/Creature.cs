@@ -45,7 +45,6 @@ public class Creature : MonoBehaviour
         birth_time = Time.time;
     }
 
-    // Start is called before the first frame update
     void Start()
     {
         // Создание набора генов объекта
@@ -127,7 +126,6 @@ public class Creature : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
     void FixedUpdate()
     {
         Task taskToDo;
@@ -249,7 +247,6 @@ public class Creature : MonoBehaviour
 
     public class IdleTask : Task
     {
-        public Vector3 direction;
         public IdleTask(string taskName, GameObject creature, float taskTime = 0.0f, float taskStartTime = 0.0f)
             : base(taskName, creature, taskTime, taskStartTime) { }
 
